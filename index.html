@@ -394,5 +394,41 @@ document.getElementById('loading').remove();
 requestAnimationFrame(frame);
 })();
 </script>
+<script>
+// presenter keys: Space / Page Down / Arrow Down / Arrow Right = next, Shift+Space / Page Up / Arrow Up / Arrow Left = back.
+// Each press glides slowly to the next stop so the transitions play out.
+(function(){
+  var anim=null, aimed=null;
+  function stops(){
+    var vh=innerHeight, out=[0], q=function(sel){return document.querySelector(sel);};
+    var h=q('.history'); if(h) out.push(h.offsetTop);
+    var t=document.getElementById('tiles'); if(t){ var nb=4, run=t.offsetHeight-vh; for(var b=0;b<nb;b++) out.push(t.offsetTop+run*(b+0.5)/nb); }
+    var st=document.getElementById('story'), n=document.getElementById('steps').children.length;
+    for(var i=0;i<n;i++) out.push(st.offsetTop+i*vh);
+    document.querySelectorAll('.drawings .board').forEach(function(b){ out.push(b.getBoundingClientRect().top+scrollY); });
+    var src=q('.sources'); if(src) out.push(src.offsetTop);
+    var max=document.documentElement.scrollHeight-vh;
+    return out.map(function(y){return Math.round(Math.min(max,Math.max(0,y)));}).sort(function(a,b){return a-b;});
+  }
+  function ease(x){ return x<0.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2; }
+  function glide(to){
+    if(anim) cancelAnimationFrame(anim);
+    var from=scrollY, d=to-from, vh=innerHeight, dur=Math.min(2600,Math.max(1100,1100+Math.abs(d)/vh*900)), t0=performance.now(); aimed=to;
+    function step(now){ var x=Math.min(1,(now-t0)/dur); window.scrollTo(0,from+d*ease(x)); if(x<1) anim=requestAnimationFrame(step); else { anim=null; aimed=null; } }
+    anim=requestAnimationFrame(step);
+  }
+  window.addEventListener('keydown',function(e){
+    var k=e.key, fwd=(k===' '&&!e.shiftKey)||k==='PageDown'||k==='ArrowDown'||k==='ArrowRight',
+        back=(k===' '&&e.shiftKey)||k==='PageUp'||k==='ArrowUp'||k==='ArrowLeft';
+    if(!fwd&&!back) return; e.preventDefault();
+    var here=aimed!==null?aimed:scrollY, S=stops(), to=here;
+    if(fwd){ for(var i=0;i<S.length;i++) if(S[i]>here+4){ to=S[i]; break; } }
+    else { for(var j=S.length-1;j>=0;j--) if(S[j]<here-4){ to=S[j]; break; } }
+    if(to!==here) glide(to);
+  });
+  // stop the glide if the presenter grabs the trackpad or mouse wheel
+  window.addEventListener('wheel',function(){ if(anim){ cancelAnimationFrame(anim); anim=null; aimed=null; } },{passive:true});
+})();
+</script>
 </body>
 </html>
